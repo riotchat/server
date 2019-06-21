@@ -1,5 +1,7 @@
 import router from '.';
 import { Response, Request } from 'express';
+import { dbConn } from '../database';
+import { User } from '../database/entity/imports';
 
 export default class Routable {
 	path: string;
@@ -61,10 +63,39 @@ export function Body(...parameters: string[]) {
 	};
 }
 
+export function Authenticated() {
+	return (target: Routable, key: string, descriptor: PropDescriptor) => {
+		let func = descriptor.value;
+		descriptor.value = async (...args) => {
+			let accessToken = args[0].headers.authorization;
+
+			let user = await dbConn.manager.findOne(User, {
+				where: {
+					accessToken
+				}
+			});
+
+			if (!user) {
+				args[1].status(403);
+				args[1].send({ error: 'Not authorised!' });
+				return;
+			}
+
+			return await func(...args, user);
+		};
+
+		return descriptor;
+	};
+}
+
 export function POST(target: any, key: string, descriptor: PropDescriptor) {
 	descriptor.method = 'POST';
 }
 
 export function GET(target: any, key: string, descriptor: PropDescriptor) {
 	descriptor.method = 'GET';
+}
+
+export function DELETE(target: any, key: string, descriptor: PropDescriptor) {
+	descriptor.method = 'DELETE';
 }
