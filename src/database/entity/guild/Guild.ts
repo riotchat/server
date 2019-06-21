@@ -1,6 +1,6 @@
 import { PrimaryGeneratedColumn, Entity, Column, ManyToOne, ManyToMany, JoinTable } from 'typeorm';
 import { GuildChannel } from './Channel';
-import { User } from '../User';
+import { User } from '../auth/User';
 
 @Entity()
 export class Guild {

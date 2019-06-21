@@ -1,6 +1,8 @@
 export * from './Channel';
 export * from './Message';
-export * from './User';
+
+export * from './auth/User';
+export * from './auth/TwoFactor';
 
 export * from './dm/Channel';
 

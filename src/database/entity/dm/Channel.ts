@@ -1,6 +1,6 @@
 import { ManyToOne, ChildEntity } from 'typeorm';
 import { Channel } from '../Channel';
-import { User } from '../User';
+import { User } from '../auth/User';
 
 @ChildEntity()
 export class DMChannel extends Channel {

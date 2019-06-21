@@ -1,10 +1,13 @@
 import "reflect-metadata";
-import { createConnection } from 'typeorm';
+import { createConnection, Connection } from 'typeorm';
 import Logger from '../system/logging';
 
 import * as Entities from './entity/imports';
+import { TwoFactor, User } from './entity/imports';
 const entities = [];
 for (let key in Entities) entities.push((<any> Entities)[key]);
+
+export var dbConn: Connection;
 
 createConnection({
 	type: 'mysql',
@@ -18,6 +21,7 @@ createConnection({
 	synchronize: true,
 	logging: false
 }).then(async connection => {
+	dbConn = connection;
 	Logger.success('Connected to database!');
 }).catch(error => {
 	Logger.error(`Could not connect to database! ${error}`);

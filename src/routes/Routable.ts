@@ -1,5 +1,5 @@
 import router from '.';
-import { Response } from 'express';
+import { Response, Request } from 'express';
 
 export default class Routable {
 	path: string;
@@ -20,10 +20,44 @@ export function Route(path: string) {
 		let method = descriptor.method;
 		let route = target.path + path;
 
-		router[method.toLowerCase()](route, async (req, res: Response) => {
-			let ret = await descriptor.value(...arguments);
+		router[method.toLowerCase()](route, async (req: Request, res: Response) => {
+			let ret = await descriptor.value(req, res);
 			if (ret) res.send(ret);
 		});
+	};
+}
+
+export function Query(...parameters: string[]) {
+	return (target: Routable, key: string, descriptor: PropDescriptor) => {
+		let func = descriptor.value;
+		descriptor.value = async (...args) => {
+			let forwarded = [];
+
+			parameters.forEach(param => {
+				forwarded.push(args[0].query[param]);
+			});
+
+			return await func(...args, ...forwarded);
+		};
+
+		return descriptor;
+	};
+}
+
+export function Body(...parameters: string[]) {
+	return (target: Routable, key: string, descriptor: PropDescriptor) => {
+		let func = descriptor.value;
+		descriptor.value = async (...args) => {
+			let forwarded = [];
+
+			parameters.forEach(param => {
+				forwarded.push(args[0].body[param]);
+			});
+
+			return await func(...args, ...forwarded);
+		};
+
+		return descriptor;
 	};
 }
 
