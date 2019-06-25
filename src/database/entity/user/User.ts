@@ -1,11 +1,23 @@
-import { Entity, Column, PrimaryGeneratedColumn, OneToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, OneToOne, JoinColumn, PrimaryColumn, BeforeInsert, CreateDateColumn } from 'typeorm';
 import { TwoFactor } from '../auth/TwoFactor';
 import { UserProfile } from './UserProfile';
 
+import { ulid } from 'ulid';
+
 @Entity({ name: 'users' })
 export class User {
-	@PrimaryGeneratedColumn()
-	id: number;
+	@PrimaryColumn({
+		length: 26
+	})
+	id: string;
+
+	@BeforeInsert()
+	private beforeInsert() {
+		this.id = ulid();
+	}
+
+	@CreateDateColumn({ type: "timestamp" })
+    createdAt: Date;
 
 	@Column({
 		length: 32

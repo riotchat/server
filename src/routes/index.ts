@@ -18,3 +18,5 @@ router.use(urlencoded({ extended: true }));
 router.use(json());
 
 import './api/v1/auth';
+import './api/v1/channels';
+import './api/v1/users';

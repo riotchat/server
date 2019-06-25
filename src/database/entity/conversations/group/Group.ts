@@ -1,4 +1,4 @@
-import { PrimaryGeneratedColumn, Entity, OneToOne, JoinColumn, Column, ManyToOne, ManyToMany, JoinTable } from 'typeorm';
+import { PrimaryGeneratedColumn, Entity, OneToOne, JoinColumn, Column, ManyToOne, ManyToMany, JoinTable, CreateDateColumn } from 'typeorm';
 import { GroupChannel } from './Channel';
 import { User } from '../../user/User';
 
@@ -6,6 +6,9 @@ import { User } from '../../user/User';
 export class Group {
 	@PrimaryGeneratedColumn()
 	id: number;
+
+	@CreateDateColumn({ type: "timestamp" })
+    createdAt: Date;
 
 	@Column({
 		length: 32

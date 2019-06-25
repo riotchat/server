@@ -29,17 +29,24 @@ export function Route(path: string) {
 	};
 }
 
-function GetParser(child: 'param' | 'body' | 'query', ...parameters: string[]) {
+function GetParser(child: 'params' | 'body' | 'query', ...parameters: (string | boolean[])[]) {
 	return (target: Routable, key: string, descriptor: PropDescriptor) => {
 		let func = descriptor.value;
 		descriptor.value = async (...args) => {
 			let forwarded = [];
+			let check;
+
+			if (Array.isArray(parameters[0])) {
+				check = parameters[0] as boolean[];
+			}
 
 			for (let i=0;i<parameters.length;i++) {
-				let param = parameters[i];
+				if (check && i == 0) continue;
+
+				let param = parameters[i] as string;
 				let o = args[0][child][param];
 
-				if (!o) {
+				if (!o && (!check || check[i])) {
 					args[1].status(422);
 					args[1].send({ error: `Missing field ${param}!` });
 
@@ -56,15 +63,15 @@ function GetParser(child: 'param' | 'body' | 'query', ...parameters: string[]) {
 	};
 }
 
-export function Parameters(...parameters: string[]) {
-	return GetParser('param', ...parameters);
+export function Param(...parameters: (string | boolean[])[]) {
+	return GetParser('params', ...parameters);
 }
 
-export function Query(...parameters: string[]) {
+export function Query(...parameters: (string | boolean[])[]) {
 	return GetParser('query', ...parameters);
 }
 
-export function Body(...parameters: string[]) {
+export function Body(...parameters: (string | boolean[])[]) {
 	return GetParser('body', ...parameters);
 }
 
