@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 
-@Entity()
+@Entity({ name: 'users -> 2fa' })
 export class TwoFactor {
 	@PrimaryGeneratedColumn()
 	id: number;
@@ -9,4 +9,12 @@ export class TwoFactor {
 		default: 'none'
 	})
 	mode: 'totp' | 'email' | 'none';
+
+	@Column()
+	token: string;
+
+	@Column({
+		nullable: true
+	})
+	totpKey: string;
 };

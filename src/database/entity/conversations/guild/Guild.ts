@@ -1,8 +1,8 @@
 import { PrimaryGeneratedColumn, Entity, Column, ManyToOne, ManyToMany, JoinTable } from 'typeorm';
 import { GuildChannel } from './Channel';
-import { User } from '../auth/User';
+import { User } from '../../user/User';
 
-@Entity()
+@Entity({ name: 'guilds' })
 export class Guild {
 	@PrimaryGeneratedColumn()
 	id: number;
@@ -16,10 +16,9 @@ export class Guild {
 	owner: User;
 
 	@ManyToMany(type => GuildChannel, { eager: true })
-	@JoinTable()
 	channels: GuildChannel[];
 
 	@ManyToMany(type => User, { eager: true })
-	@JoinTable()
+	@JoinTable({ name: 'guilds -> members' })
 	members: User[];
 }

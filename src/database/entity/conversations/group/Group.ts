@@ -1,8 +1,8 @@
 import { PrimaryGeneratedColumn, Entity, OneToOne, JoinColumn, Column, ManyToOne, ManyToMany, JoinTable } from 'typeorm';
 import { GroupChannel } from './Channel';
-import { User } from '../auth/User';
+import { User } from '../../user/User';
 
-@Entity()
+@Entity({ name: 'groups' })
 export class Group {
 	@PrimaryGeneratedColumn()
 	id: number;
@@ -20,6 +20,6 @@ export class Group {
 	channel: GroupChannel;
 
 	@ManyToMany(type => User, { eager: true })
-	@JoinTable()
+	@JoinTable({ name: 'groups -> members' })
 	members: User[];
 }

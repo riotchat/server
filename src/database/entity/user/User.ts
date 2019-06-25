@@ -1,7 +1,8 @@
 import { Entity, Column, PrimaryGeneratedColumn, OneToOne, JoinColumn } from 'typeorm';
-import { TwoFactor } from './TwoFactor';
+import { TwoFactor } from '../auth/TwoFactor';
+import { UserProfile } from './UserProfile';
 
-@Entity()
+@Entity({ name: 'users' })
 export class User {
 	@PrimaryGeneratedColumn()
 	id: number;
@@ -27,4 +28,8 @@ export class User {
 	@OneToOne(type => TwoFactor)
 	@JoinColumn()
 	options2FA: TwoFactor;
+
+	@OneToOne(type => UserProfile)
+	@JoinColumn()
+	userProfile: UserProfile;
 };

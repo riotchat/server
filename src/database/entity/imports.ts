@@ -1,13 +1,15 @@
-export * from './Channel';
-export * from './Message';
+export * from './conversations/Channel';
+export * from './conversations/Message';
 
-export * from './auth/User';
+export * from './user/User';
 export * from './auth/TwoFactor';
 
-export * from './dm/Channel';
+export * from './user/UserProfile';
 
-export * from './group/Channel';
-export * from './group/Group';
+export * from './conversations/dm/Channel';
 
-export * from './guild/Channel';
-export * from './guild/Guild';
+export * from './conversations/group/Channel';
+export * from './conversations/group/Group';
+
+export * from './conversations/guild/Channel';
+export * from './conversations/guild/Guild';

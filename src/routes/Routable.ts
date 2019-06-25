@@ -29,15 +29,25 @@ export function Route(path: string) {
 	};
 }
 
-export function Query(...parameters: string[]) {
+function GetParser(child: 'param' | 'body' | 'query', ...parameters: string[]) {
 	return (target: Routable, key: string, descriptor: PropDescriptor) => {
 		let func = descriptor.value;
 		descriptor.value = async (...args) => {
 			let forwarded = [];
 
-			parameters.forEach(param => {
-				forwarded.push(args[0].query[param]);
-			});
+			for (let i=0;i<parameters.length;i++) {
+				let param = parameters[i];
+				let o = args[0][child][param];
+
+				if (!o) {
+					args[1].status(422);
+					args[1].send({ error: `Missing field ${param}!` });
+
+					return;
+				}
+
+				forwarded.push(o);
+			};
 
 			return await func(...args, ...forwarded);
 		};
@@ -46,21 +56,16 @@ export function Query(...parameters: string[]) {
 	};
 }
 
+export function Parameters(...parameters: string[]) {
+	return GetParser('param', ...parameters);
+}
+
+export function Query(...parameters: string[]) {
+	return GetParser('query', ...parameters);
+}
+
 export function Body(...parameters: string[]) {
-	return (target: Routable, key: string, descriptor: PropDescriptor) => {
-		let func = descriptor.value;
-		descriptor.value = async (...args) => {
-			let forwarded = [];
-
-			parameters.forEach(param => {
-				forwarded.push(args[0].body[param]);
-			});
-
-			return await func(...args, ...forwarded);
-		};
-
-		return descriptor;
-	};
+	return GetParser('body', ...parameters);
 }
 
 export function Authenticated() {
