@@ -3,7 +3,7 @@ import * as IChannels from '../../../api/v1/channels';
 import { dbConn } from '../../../database';
 import { Channel, Message, DMChannel, User } from '../../../database/entity/imports';
 import { createQueryBuilder } from 'typeorm';
-import { wss } from '../../../websocket';
+import { wss, SendPacket } from '../../../websocket';
 
 export class Channels extends Routable {
 	@Path('/api/v1/channels')
@@ -82,14 +82,12 @@ export class Channels extends Routable {
 		message.author = user;
 		await dbConn.manager.save(message);
 
-		wss.clients.forEach(client => {
-			client.send(JSON.stringify({
-				type: 'messageCreate',
-				id: message.id,
-				content: message.content,
-				channel: message.channel.id,
-				author: message.author.id
-			}));
+		SendPacket({
+			type: 'messageCreate',
+			id: message.id,
+			content: message.content,
+			channel: message.channel.id,
+			author: message.author.id
 		});
 
 		return {
