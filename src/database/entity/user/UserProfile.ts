@@ -8,4 +8,7 @@ export class UserProfile {
 
 	@Column()
 	status: Status;
+
+	@Column()
+	avatarURL: string;
 };

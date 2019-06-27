@@ -7,4 +7,9 @@ export class GroupChannel extends Channel {
 	@OneToOne(type => Group, group => group.channel)
 	@JoinColumn()
 	group: Group;
+
+	@Column({
+		length: 64
+	})
+	description: string;
 }

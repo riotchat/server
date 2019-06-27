@@ -1,8 +1,9 @@
 import Routable, { Route, POST, Path, GET, Query, Body, Authenticated, DELETE, Param } from '../../Routable';
 import * as IChannels from '../../../api/v1/channels';
 import { dbConn } from '../../../database';
-import { Channel, Message } from '../../../database/entity/imports';
+import { Channel, Message, DMChannel, User } from '../../../database/entity/imports';
 import { createQueryBuilder } from 'typeorm';
+import { wss } from '../../../websocket';
 
 export class Channels extends Routable {
 	@Path('/api/v1/channels')
@@ -12,12 +13,26 @@ export class Channels extends Routable {
 	@Authenticated()
 	@Param('id')
 	@GET
-	async Channel(req, res, user, target: string): Promise<IChannels.Channel | void> {
-		let channel = dbConn.manager.findOne(Channel, {
+	async Channel(req, res, user: User, target: string): Promise<IChannels.Channel | void> {
+		let channel = await dbConn.manager.findOne(Channel, {
 			where: {
 				id: target
 			}
 		});
+
+		if (channel instanceof DMChannel) {
+			return {
+				id: channel.id,
+				type: IChannels.ChannelType.DM,
+				users: [
+					channel.userA.id,
+					channel.userB.id
+				]
+			};
+		}
+
+		res.status(503);
+		res.send({ error: 'no implemtnetation bad' });
 	}
 
 	@Route('/:id/messages')
@@ -66,6 +81,16 @@ export class Channels extends Routable {
 		message.content = content;
 		message.author = user;
 		await dbConn.manager.save(message);
+
+		wss.clients.forEach(client => {
+			client.send(JSON.stringify({
+				type: 'messageCreate',
+				id: message.id,
+				content: message.content,
+				channel: message.channel.id,
+				author: message.author.id
+			}));
+		});
 
 		return {
 			id: message.id

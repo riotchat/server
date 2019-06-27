@@ -12,7 +12,7 @@ export class Users extends Routable {
 	@Authenticated()
 	@Param('user')
 	@GET
-	async Users(req, res, user, target: string): Promise<IUser.User | void> {
+	async Users(req, res, user: User, target: string): Promise<IUser.User | void> {
 		if (target !== "@me") {
 			user = await dbConn.manager.findOne(User, {
 				where: {
@@ -35,7 +35,10 @@ export class Users extends Routable {
 		});
 
 		return {
-			status: profile.status
+			id: user.id,
+			username: user.username,
+			status: profile.status,
+			avatarURL: profile.avatarURL
 		};
 	}
 

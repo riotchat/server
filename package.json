@@ -5,6 +5,7 @@
   "repository": "https://github.com/riotchat/server",
   "devDependencies": {
     "@types/bcrypt": "^3.0.0",
+    "@types/ws": "^6.0.1",
     "tsc-watch": "^2.2.1",
     "typescript": "^3.5.2"
   },
@@ -22,6 +23,7 @@
     "reflect-metadata": "^0.1.13",
     "tslib": "^1.10.0",
     "typeorm": "^0.2.18",
-    "ulid": "^2.3.0"
+    "ulid": "^2.3.0",
+    "ws": "^7.0.1"
   }
 }

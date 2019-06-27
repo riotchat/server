@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, TableInheritance, OneToMany, PrimaryColumn, BeforeInsert } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, TableInheritance, OneToMany, PrimaryColumn, BeforeInsert, Column } from 'typeorm';
 import { Message } from './Message';
 
 import { ulid } from 'ulid';
