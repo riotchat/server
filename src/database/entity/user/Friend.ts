@@ -1,10 +1,18 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToOne } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToOne, BeforeInsert, PrimaryColumn } from 'typeorm';
 import { User } from './User';
+import { ulid } from 'ulid';
 
 @Entity({ name: 'users -> friends' })
 export class Friend {
-	@PrimaryGeneratedColumn()
-	id: number;
+	@PrimaryColumn({
+		length: 26
+	})
+	id: string;
+
+	@BeforeInsert()
+	private beforeInsert() {
+		this.id = ulid();
+	}
 
 	@ManyToOne(type => User)
 	user: User;

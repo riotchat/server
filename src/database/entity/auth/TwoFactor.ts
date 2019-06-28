@@ -1,9 +1,17 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, BeforeInsert, PrimaryColumn } from 'typeorm';
+import { ulid } from 'ulid';
 
 @Entity({ name: 'users -> 2fa' })
 export class TwoFactor {
-	@PrimaryGeneratedColumn()
-	id: number;
+	@PrimaryColumn({
+		length: 26
+	})
+	id: string;
+
+	@BeforeInsert()
+	private beforeInsert() {
+		this.id = ulid();
+	}
 
 	@Column({
 		default: 'none'

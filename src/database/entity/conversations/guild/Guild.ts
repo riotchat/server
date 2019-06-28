@@ -1,11 +1,19 @@
-import { PrimaryGeneratedColumn, Entity, Column, ManyToOne, ManyToMany, JoinTable } from 'typeorm';
+import { PrimaryGeneratedColumn, Entity, Column, ManyToOne, ManyToMany, JoinTable, BeforeInsert, PrimaryColumn } from 'typeorm';
 import { GuildChannel } from './Channel';
 import { User } from '../../user/User';
+import { ulid } from 'ulid';
 
 @Entity({ name: 'guilds' })
 export class Guild {
-	@PrimaryGeneratedColumn()
-	id: number;
+	@PrimaryColumn({
+		length: 26
+	})
+	id: string;
+
+	@BeforeInsert()
+	private beforeInsert() {
+		this.id = ulid();
+	}
 
 	@Column({
 		length: 32
