@@ -75,16 +75,17 @@ export function Body(...parameters: (string | boolean[])[]) {
 	return GetParser('body', ...parameters);
 }
 
-export function Authenticated() {
+export function Authenticated(relations?: string[]) {
 	return (target: Routable, key: string, descriptor: PropDescriptor) => {
 		let func = descriptor.value;
 		descriptor.value = async (...args) => {
 			let accessToken = args[0].headers.authorization;
 
-			let user = await dbConn.manager.findOne(User, {
-				where: {
-					accessToken
-				}
+			let repo = dbConn.getRepository(User);
+			let user = await repo.findOne({
+				accessToken
+			}, {
+				relations
 			});
 
 			if (!user) {

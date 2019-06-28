@@ -1,4 +1,6 @@
 import { Router, json, urlencoded } from 'express';
+import cors from 'cors';
+
 import { dbConn } from '../database';
 
 const router = Router();
@@ -14,6 +16,7 @@ router.use((req, res, next) => {
 	next();
 });
 
+router.use(cors());
 router.use(urlencoded({ extended: true }));
 router.use(json());
 

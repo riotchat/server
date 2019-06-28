@@ -25,7 +25,7 @@ export class Auth extends Routable {
 			email
 		}, {
 			relations: ['options2FA']
-		})
+		});
 		
 		if (!user) {
 			res.status(403);

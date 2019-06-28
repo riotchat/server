@@ -9,15 +9,16 @@ export class Users extends Routable {
 	path;
 
 	@Route('/:user')
-	@Authenticated()
+	@Authenticated(['userProfile'])
 	@Param('user')
 	@GET
 	async Users(req, res, user: User, target: string): Promise<IUser.User | void> {
 		if (target !== "@me") {
-			user = await dbConn.manager.findOne(User, {
-				where: {
-					id: target
-				}
+			let repo = dbConn.getRepository(User);
+			user = await repo.findOne({
+				id: target
+			}, {
+				relations: ['userProfile']
 			});
 
 			if (!user) {
@@ -28,12 +29,7 @@ export class Users extends Routable {
 			}
 		}
 
-		let profile = await dbConn.manager.findOne(UserProfile, {
-			where: {
-				user
-			}
-		});
-
+		let profile = user.userProfile;
 		return {
 			id: user.id,
 			username: user.username,
