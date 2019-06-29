@@ -1,8 +1,9 @@
-import Routable, { Route, POST, Path, GET, Query, Body, Authenticated, DELETE, Param } from '../../Routable';
+import Routable, { Route, POST, Path, GET, Body, Authenticated, Param } from '../../Routable';
 import * as IUser from '../../../api/v1/users';
 import { dbConn } from '../../../database';
-import { UserProfile, User, DMChannel } from '../../../database/entity/imports';
-import { Auth } from './auth';
+import { User, DMChannel } from '../../../database/entity/imports';
+import { Friend } from '../../../database/entity/user/Friend';
+import { createQueryBuilder } from 'typeorm';
 
 export class Users extends Routable {
 	@Path('/api/v1/users')
@@ -107,4 +108,80 @@ export class Users extends Routable {
 			id: channel.id
 		};
 	}
+
+	@Route('/@me/friends')
+	@Authenticated()
+	@GET
+	async GetFriends(req, res, user: User): Promise<IUser.Friends> {
+		let friends = await createQueryBuilder(Friend)
+			.where('Friend.userId = :target', { target: user.id })
+			.getRawMany();
+
+		let out = [];
+		friends.forEach(friend => {
+			out.push({
+				user: friend.Friend_friendId,
+				type: friend.Friend_status
+			});
+		});
+
+		return out;
+	}
+
+	@Route('/@me/friends/:id')
+	@Authenticated()
+	@Param('id')
+	@POST
+	async AddFriend(req, res, user: User, id: string): Promise<IUser.AddFriend> {
+		let friend = await dbConn.manager.findOne(User, {
+			where: {
+				id
+			}
+		});
+
+		if (!friend) {
+			res.status(404);
+			res.send({ error: 'User not found!' });
+			
+			return;
+		}
+
+		if (user.id === friend.id) {
+			res.status(503);
+			res.send({ error: 'Cannot add yourself!' });
+
+			return;
+		}
+
+		let entry = await dbConn.manager.findOne(Friend, {
+			where: {
+				user,
+				friend
+			}
+		});
+
+		if (entry) {
+			res.status(503);
+			res.send({ error: 'Already friends or pending!' });
+
+			return;
+		}
+
+		let self = new Friend();
+		let other = new Friend();
+
+		self.friend = friend;
+		other.friend = user;
+
+		self.status = 'pending';
+		other.status = 'incoming';
+
+		self.user = user;
+		other.user = friend;
+
+		await dbConn.manager.save([self, other]);
+
+		return {};
+	}
+
 }

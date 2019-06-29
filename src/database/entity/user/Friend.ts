@@ -1,6 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToOne, BeforeInsert, PrimaryColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, OneToOne, BeforeInsert, PrimaryColumn, JoinColumn } from 'typeorm';
 import { User } from './User';
 import { ulid } from 'ulid';
+import { FriendType } from '../../../api/v1/users';
 
 @Entity({ name: 'users -> friends' })
 export class Friend {
@@ -15,14 +16,13 @@ export class Friend {
 	}
 
 	@ManyToOne(type => User)
+	@JoinColumn()
 	user: User;
 
 	@ManyToOne(type => User)
+	@JoinColumn()
 	friend: User;
 
-	@OneToOne(type => Friend, friend => friend.linkedTo)
-	linkedTo: Friend;
-
 	@Column()
-	pending: boolean;
+	status: FriendType;
 };

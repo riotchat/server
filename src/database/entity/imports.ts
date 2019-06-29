@@ -2,9 +2,9 @@ export * from './conversations/Channel';
 export * from './conversations/Message';
 
 export * from './user/User';
-export * from './auth/TwoFactor';
-
+export * from './user/Friend';
 export * from './user/UserProfile';
+export * from './auth/TwoFactor';
 
 export * from './conversations/dm/Channel';
 
