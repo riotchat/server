@@ -1,4 +1,4 @@
-import Routable, { Route, POST, Path, GET, Body, Authenticated, Param } from '../../Routable';
+import Routable, { Route, POST, Path, GET, Body, Authenticated, Param, DELETE } from '../../Routable';
 import * as IUser from '../../../api/v1/users';
 import { dbConn } from '../../../database';
 import { User, DMChannel } from '../../../database/entity/imports';
@@ -132,7 +132,7 @@ export class Users extends Routable {
 	@Authenticated()
 	@Param('id')
 	@POST
-	async AddFriend(req, res, user: User, id: string): Promise<IUser.AddFriend> {
+	async AddFriend(req, res, user: User, id: string): Promise<IUser.AddFriend | void> {
 		let friend = await dbConn.manager.findOne(User, {
 			where: {
 				id
@@ -160,6 +160,22 @@ export class Users extends Routable {
 			}
 		});
 
+		if (entry.status === 'incoming') {
+			entry.status = 'active';
+
+			let other = await dbConn.manager.findOne(Friend, {
+				where: {
+					friend: entry.user,
+					user: entry.friend
+				}
+			});
+
+			other.status = 'active';
+			await dbConn.manager.save([entry, other]);
+
+			return {};
+		}
+
 		if (entry) {
 			res.status(503);
 			res.send({ error: 'Already friends or pending!' });
@@ -181,6 +197,35 @@ export class Users extends Routable {
 
 		await dbConn.manager.save([self, other]);
 
+		return {};
+	}
+
+	@Route('/@me/friends/:id')
+	@Authenticated()
+	@Param('id')
+	@DELETE
+	async RemoveFriend(req, res, user: User, id: string): Promise<IUser.RemoveFriend | void> {
+		let friend = await dbConn.manager.findOne(User, { where: { id } });
+
+		if (!friend) {
+			res.status(404);
+			res.send('Cannot find user!');
+			
+			return;
+		}
+
+		let self = await dbConn.manager.findOne(Friend, { where: { user, friend } });
+
+		if (!self) {
+			res.status(404);
+			res.send('Not friends with this user and not pending request!');
+
+			return;
+		}
+
+		let other = await dbConn.manager.findOne(Friend, { where: { friend: user, user: friend } });
+		await dbConn.manager.delete(Friend, [self, other]);
+		
 		return {};
 	}
 
