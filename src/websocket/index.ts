@@ -45,6 +45,7 @@ wss.on('connection', (ws: RiotSocket) => {
 
 					if (user) {
 						Logger.debug(`Websocket client: ${user.id} logged in.`);
+						ws.user = user;
 						ws.sendPacket({
 							type: 'authenticated'
 						});

@@ -181,6 +181,13 @@ export class Users extends Routable {
 		
 					relation: 'active'
 				}, ws => ws.user.id === other.user.id);
+
+				SendPacket({
+					type: 'userUpdate',
+					user: friend.id,
+		
+					relation: 'active'
+				}, ws => ws.user.id === user.id);
 	
 				return {
 					status: 'active'
@@ -212,7 +219,14 @@ export class Users extends Routable {
 			user: user.id,
 
 			relation: 'incoming'
-		}, ws => ws.user.id === other.user.id);
+		}, ws => ws.user.id === friend.id);
+
+		SendPacket({
+			type: 'userUpdate',
+			user: friend.id,
+
+			relation: 'pending'
+		}, ws => ws.user.id === user.id);
 
 		return {
 			status: 'pending'
@@ -251,6 +265,13 @@ export class Users extends Routable {
 
 			relation: 'unknown'
 		}, ws => ws.user.id === friend.id);
+
+		SendPacket({
+			type: 'userUpdate',
+			user: friend.id,
+
+			relation: 'unknown'
+		}, ws => ws.user.id === user.id);
 
 		return {
 			status: 'unknown'
