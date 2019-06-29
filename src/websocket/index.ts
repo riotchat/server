@@ -1,10 +1,17 @@
 import http from '../main';
 import WebSocket, { Server } from 'ws';
-import { Packets } from '../api/ws/v1';
+import { Packets, ClientPackets } from '../api/ws/v1';
+import { User } from '../database/entity/imports';
+import { dbConn } from '../database';
 
-export const wss = new Server({ server: http, path: "/ws" });
+const wss = new Server({ server: http, path: "/ws" });
 
-export function SendPacket(obj: Packets, filter?: (ws: WebSocket) => boolean) {
+interface RiotSocket extends WebSocket {
+	user: User
+	send: (data: Packets) => void
+};
+
+export function SendPacket(obj: Packets, filter?: (ws: RiotSocket) => boolean) {
 	let clients: WebSocket[] = [];
 	wss.clients.forEach(c => clients.push(c));
 
@@ -17,10 +24,35 @@ export function SendPacket(obj: Packets, filter?: (ws: WebSocket) => boolean) {
 	);
 }
 
-wss.on('connection', (ws: WebSocket) => {
-	console.log('connected');
+wss.on('connection', (ws: RiotSocket) => {
+	let authenticated = false;
 
-	//ws.on('message', (data) => {
-	//	console.log(data);
-	//});
+	ws.on('message', async (data: ClientPackets) => {
+		if (authenticated) return;
+		
+		switch (data.type) {
+			case 'authenticate':
+				{
+					let user = await dbConn.manager.findOne(User, {
+						where: {
+							accessToken: data.token
+						}
+					});
+
+					if (user) {
+						ws.send({
+							type: 'authenticated'
+						});
+
+						authenticated = true;
+					} else {
+						ws.send({
+							type: 'error',
+							error: 'Unauthorised token!'
+						});
+					}
+				}
+				break;
+		}
+	});
 });
