@@ -30,7 +30,7 @@ function Handle(string: string) {
   }
 }
 
-const Logger = new LoggerInternal(4 /** ?: SET LOG LEVEL */, Handle);
+const Logger = new LoggerInternal(LogLevel.Debug, Handle);
 export default Logger;
 
 createHandle();

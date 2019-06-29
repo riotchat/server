@@ -4,6 +4,7 @@ import { dbConn } from '../../../database';
 import { User, DMChannel } from '../../../database/entity/imports';
 import { Friend } from '../../../database/entity/user/Friend';
 import { createQueryBuilder } from 'typeorm';
+import { SendPacket } from '../../../websocket';
 
 export class Users extends Routable {
 	@Path('/api/v1/users')
@@ -160,23 +161,32 @@ export class Users extends Routable {
 			}
 		});
 
-		if (entry.status === 'incoming') {
-			entry.status = 'active';
-
-			let other = await dbConn.manager.findOne(Friend, {
-				where: {
-					friend: entry.user,
-					user: entry.friend
-				}
-			});
-
-			other.status = 'active';
-			await dbConn.manager.save([entry, other]);
-
-			return {};
-		}
-
 		if (entry) {
+			if (entry.status === 'incoming') {
+				entry.status = 'active';
+	
+				let other = await dbConn.manager.findOne(Friend, {
+					where: {
+						friend: entry.user,
+						user: entry.friend
+					}
+				});
+	
+				other.status = 'active';
+				await dbConn.manager.save([entry, other]);
+
+				SendPacket({
+					type: 'userUpdate',
+					user: user.id,
+		
+					relation: 'active'
+				}, ws => ws.user.id === other.user.id);
+	
+				return {
+					status: 'active'
+				};
+			}
+
 			res.status(503);
 			res.send({ error: 'Already friends or pending!' });
 
@@ -197,7 +207,16 @@ export class Users extends Routable {
 
 		await dbConn.manager.save([self, other]);
 
-		return {};
+		SendPacket({
+			type: 'userUpdate',
+			user: user.id,
+
+			relation: 'incoming'
+		}, ws => ws.user.id === other.user.id);
+
+		return {
+			status: 'pending'
+		};
 	}
 
 	@Route('/@me/friends/:id')
@@ -225,8 +244,17 @@ export class Users extends Routable {
 
 		let other = await dbConn.manager.findOne(Friend, { where: { friend: user, user: friend } });
 		await dbConn.manager.delete(Friend, [self, other]);
-		
-		return {};
+
+		SendPacket({
+			type: 'userUpdate',
+			user: user.id,
+
+			relation: 'unknown'
+		}, ws => ws.user.id === friend.id);
+
+		return {
+			status: 'unknown'
+		};
 	}
 
 }
