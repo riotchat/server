@@ -49,6 +49,8 @@ export class Channels extends Routable {
 			msgs.push({
 				id: message.Message_id,
 				content: message.Message_content,
+				createdAt: message.Message_createdAt,
+				updatedAt: message.Message_updatedAt,
 				author: message.Message_authorId,
 				channel: message.Message_channelId
 			})
@@ -63,6 +65,8 @@ export class Channels extends Routable {
 	@Body('content')
 	@POST
 	async SendMessage(req, res, user, target: string, content: string): Promise<IChannels.SendMessage | void> {
+		content = content.substring(0, 2000);
+
 		let channel = await dbConn.manager.findOne(Channel, {
 			where: {
 				id: target
@@ -88,9 +92,11 @@ export class Channels extends Routable {
 		}
 
 		SendPacket({
-			type: 'messageCreate',
+			type: 'message',
 			id: message.id,
 			content: message.content,
+			createdAt: message.createdAt.getTime(),
+			updatedAt: message.updatedAt.getTime(),
 			channel: message.channel.id,
 			author: message.author.id
 		}, ws => {
@@ -100,6 +106,78 @@ export class Channels extends Routable {
 
 		return {
 			id: message.id
+		};
+	}
+
+	@Route('/:id/messages/:mid')
+	@Authenticated()
+	@Param('id', 'mid')
+	@Body('content')
+	@POST
+	async EditMessage(req, res, user: User, target: string, msg: string, content: string): Promise<IChannels.EditMessage | void> {
+		content = content.substring(0, 2000);
+
+		let channel = await dbConn.manager.findOne(Channel, {
+			where: {
+				id: target
+			}
+		});
+
+		if (!channel) {
+			res.status(404);
+			res.send({ error: "Channel not found!" });
+
+			return;
+		}
+
+		let check = await createQueryBuilder(Message)
+			.where('Message.id = :msg', { msg })
+			.select('authorId')
+			.getRawOne();
+
+		if (!check) {
+			res.status(404);
+			res.send({ error: 'Message does not exist!' });
+
+			return;
+		}
+
+		if (check.authorId !== user.id) {
+			res.status(403);
+			res.send({ error: 'Not author of message!' });
+
+			return;
+		}
+
+		let message = await dbConn.manager.findOne(Message, {
+			where: {
+				id: msg
+			}
+		});
+
+		message.content = content;
+		await dbConn.manager.save(message);
+
+		let users: string[] = [];
+		if (channel instanceof DMChannel) {
+			users = [channel.userA.id, channel.userB.id];
+		}
+
+		SendPacket({
+			type: 'message',
+			id: message.id,
+			content: message.content,
+			createdAt: +message.createdAt,
+			updatedAt: +message.updatedAt,
+			channel: channel.id,
+			author: user.id
+		}, ws => {
+			return ws.user ?
+				(users.indexOf(ws.user.id) > -1) : false
+		});
+
+		return {
+			updatedAt: +message.updatedAt
 		};
 	}
 }

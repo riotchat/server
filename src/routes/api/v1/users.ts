@@ -6,6 +6,11 @@ import { Friend } from '../../../database/entity/user/Friend';
 import { createQueryBuilder } from 'typeorm';
 import { SendPacket } from '../../../websocket';
 
+function GenerateProfilePicture(id: string) {
+	console.log(id);
+	return 'https://owo.insrt.uk/tpHwovNc7Mki20fljDGtt.png';
+}
+
 export class Users extends Routable {
 	@Path('/api/v1/users')
 	path;
@@ -15,7 +20,8 @@ export class Users extends Routable {
 	@Param('user')
 	@GET
 	async Users(req, res, user: User, target: string): Promise<IUser.User | void> {
-		if (target !== "@me") {
+		let self = target === '@me' || target === user.id;
+		if (!self) {
 			let repo = dbConn.getRepository(User);
 			user = await repo.findOne({
 				id: target
@@ -34,9 +40,10 @@ export class Users extends Routable {
 		let profile = user.userProfile;
 		return {
 			id: user.id,
+			email: self ? user.email : undefined,
 			username: user.username,
 			status: profile.status,
-			avatarURL: profile.avatarURL
+			avatarURL: profile.avatarURL || GenerateProfilePicture(user.id)
 		};
 	}
 
@@ -167,8 +174,8 @@ export class Users extends Routable {
 	
 				let other = await dbConn.manager.findOne(Friend, {
 					where: {
-						friend: entry.user,
-						user: entry.friend
+						user: friend,
+						friend: user
 					}
 				});
 	
@@ -180,7 +187,7 @@ export class Users extends Routable {
 					user: user.id,
 		
 					relation: 'active'
-				}, ws => ws.user.id === other.user.id);
+				}, ws => ws.user.id === friend.id);
 
 				SendPacket({
 					type: 'userUpdate',

@@ -19,7 +19,8 @@ createConnection({
 	database: 'riot',
 	entities,
 	synchronize: true,
-	logging: false
+	logging: false,
+	charset: 'utf8mb4'
 }).then(async connection => {
 	dbConn = connection;
 	Logger.success('Connected to database!');

@@ -7,6 +7,9 @@ export class GuildChannel extends Channel {
 	@ManyToOne(type => Guild)
 	guild: Guild;
 
+	@Column()
+	name: string;
+	
 	@Column({
 		length: 64
 	})
