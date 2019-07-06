@@ -5,7 +5,6 @@ import { Group } from './Group';
 @ChildEntity()
 export class GroupChannel extends Channel {	
 	@OneToOne(type => Group, group => group.channel)
-	@JoinColumn()
 	group: Group;
 
 	@Column({

@@ -1,7 +1,7 @@
 import Routable, { Route, POST, Path, GET, Query, Body, Authenticated, DELETE, Param } from '../../Routable';
 import * as IChannels from '../../../api/v1/channels';
 import { dbConn } from '../../../database';
-import { Channel, Message, DMChannel, User } from '../../../database/entity/imports';
+import { Channel, Message, DMChannel, User, GroupChannel, Group } from '../../../database/entity/imports';
 import { createQueryBuilder } from 'typeorm';
 import { SendPacket } from '../../../websocket';
 
@@ -178,6 +178,84 @@ export class Channels extends Routable {
 
 		return {
 			updatedAt: +message.updatedAt
+		};
+	}
+
+	@Route('/:id/recipients')
+	@Authenticated()
+	@Param('id')
+	@Body('recipient')
+	@POST
+	async AddRecipient(req, res, user: User, id: string, recipient: string): Promise<IChannels.AddRecipient | void> {
+		let channel = await dbConn.manager.findOne(Channel, {
+			where: {
+				id
+			}
+		});
+
+		if (!channel) {
+			res.status(404);
+			res.send({ error: 'Channel does not exist!' });
+
+			return;
+		}
+
+		let target = await dbConn.manager.findOne(User, {
+			where: {
+				id: recipient
+			}
+		});
+
+		if (!target) {
+			res.status(404);
+			res.send({ error: 'Target user does not exist!' });
+
+			return;
+		}
+
+		let newid;
+		if (channel instanceof DMChannel) {
+			let groupChannel = new GroupChannel();
+			
+			await dbConn.manager.save(groupChannel);
+
+			let group = new Group();
+			group.channel = groupChannel;
+			group.owner = user;
+			group.members = [
+				channel.userA,
+				channel.userB,
+				target
+			];
+			group.title = group.members.map(x => x.username).join(', ');
+
+			await dbConn.manager.save(group);
+			channel = groupChannel;
+		} else if (channel instanceof GroupChannel) {
+			let group = await dbConn.manager.findOne(Group, {
+				where: {
+					channel
+				}
+			});
+
+			let builder = dbConn
+				.createQueryBuilder()
+				.relation(Group, 'members')
+				.of(group);
+
+			let res = await builder.execute();
+			console.log(res);
+		} else {
+			res.status(403);
+			res.send('Not a Group or DM channel!');
+
+			return;
+		}
+
+		await dbConn.manager.save(channel);
+
+		return {
+			id: channel.id
 		};
 	}
 }

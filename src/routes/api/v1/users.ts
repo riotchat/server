@@ -7,8 +7,12 @@ import { createQueryBuilder } from 'typeorm';
 import { SendPacket } from '../../../websocket';
 
 function GenerateProfilePicture(id: string) {
-	console.log(id);
-	return 'https://owo.insrt.uk/tpHwovNc7Mki20fljDGtt.png';
+	let arr = id.split("");
+	let no = 0;
+
+	for (let i in arr) no += arr[i].charCodeAt(0);
+
+	return `https://raw.githubusercontent.com/riotchat/assets/master/default/${no % 5}.png`;
 }
 
 export class Users extends Routable {

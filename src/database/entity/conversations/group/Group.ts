@@ -30,7 +30,7 @@ export class Group {
 	@JoinColumn()
 	channel: GroupChannel;
 
-	@ManyToMany(type => User, { eager: true })
+	@ManyToMany(type => User)
 	@JoinTable({ name: 'groups -> members' })
 	members: User[];
 }
