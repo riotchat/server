@@ -1,4 +1,4 @@
-import { ManyToOne, ChildEntity } from 'typeorm';
+import { ManyToOne, ChildEntity, Column } from 'typeorm';
 import { Channel } from '../Channel';
 import { User } from '../../user/User';
 
@@ -8,5 +8,8 @@ export class DMChannel extends Channel {
 	userA: User;
 	
 	@ManyToOne(type => User, { eager: true })
-    userB: User;
+	userB: User;
+	
+	@Column({ default: false })
+	active: boolean;
 }

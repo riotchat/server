@@ -3,7 +3,7 @@ import * as IUser from '../../../api/v1/users';
 import { dbConn } from '../../../database';
 import { User, DMChannel, Group } from '../../../database/entity/imports';
 import { Friend } from '../../../database/entity/user/Friend';
-import { createQueryBuilder, getRepository } from 'typeorm';
+import { createQueryBuilder, getRepository, Brackets } from 'typeorm';
 import { SendPacket } from '../../../websocket';
 import { ChannelType } from '../../../api/v1/channels';
 
@@ -117,27 +117,18 @@ export class Users extends Routable {
 	@Authenticated()
 	@GET
 	async GetDMs(req, res, user: User): Promise<IUser.GetDMs> {
-		let channels = await dbConn.manager.find(DMChannel, {
-			where: [
-				{
-					userA: user
-				},
-				{
-					userB: user
-				}
-			]
+		let channels = await createQueryBuilder(DMChannel, 'Channel')
+			.where('(Channel.userA = :id OR Channel.userB = :id)', { id: user.id })
+			.andWhere('Channel.active = 1')
+			.getRawMany();
+
+		return channels.map(channel => {
+			return {
+				id: channel.Channel_id,
+				user: user.id === channel.Channel_userAId ?
+					channel.Channel_userBId : channel.Channel_userAId
+			};
 		});
-
-		let dms: IUser.GetDMs = [];
-		channels.forEach(channel =>
-			dms.push({
-				id: channel.id,
-				user: user.id === channel.userA.id ?
-					channel.userB.id : channel.userA.id
-			})
-		);
-
-		return dms;
 	}
 
 	@Route('/@me/groups')

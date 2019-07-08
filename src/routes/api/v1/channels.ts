@@ -2,7 +2,7 @@ import Routable, { Route, POST, Path, GET, Query, Body, Authenticated, DELETE, P
 import * as IChannels from '../../../api/v1/channels';
 import { dbConn } from '../../../database';
 import { Channel, Message, DMChannel, User, GroupChannel, Group } from '../../../database/entity/imports';
-import { createQueryBuilder, getConnection, getRepository } from 'typeorm';
+import { createQueryBuilder, getConnection, getRepository, getManager } from 'typeorm';
 import { SendPacket } from '../../../websocket';
 
 export class Channels extends Routable {
@@ -84,10 +84,15 @@ export class Channels extends Routable {
 		message.channel = channel;
 		message.content = content;
 		message.author = user;
-		await dbConn.manager.save(message);
+		await getManager().save(message);
 
 		let users: string[] = [];
 		if (channel instanceof DMChannel) {
+			if (!channel.active) {
+				channel.active = true;
+				await getManager().save(channel);
+			}
+
 			users = [channel.userA.id, channel.userB.id];
 		}
 
