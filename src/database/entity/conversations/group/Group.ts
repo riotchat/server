@@ -18,6 +18,9 @@ export class Group {
 	@CreateDateColumn({ type: "timestamp" })
     createdAt: Date;
 
+	@Column()
+	avatarURL: string;
+
 	@Column({
 		length: 32
 	})

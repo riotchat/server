@@ -1,10 +1,11 @@
-import Routable, { Route, POST, Path, GET, Body, Authenticated, Param, DELETE } from '../../Routable';
+import Routable, { Route, POST, Path, GET, Body, Authenticated, Param, DELETE, PUT, Query } from '../../Routable';
 import * as IUser from '../../../api/v1/users';
 import { dbConn } from '../../../database';
-import { User, DMChannel } from '../../../database/entity/imports';
+import { User, DMChannel, Group } from '../../../database/entity/imports';
 import { Friend } from '../../../database/entity/user/Friend';
-import { createQueryBuilder } from 'typeorm';
+import { createQueryBuilder, getRepository } from 'typeorm';
 import { SendPacket } from '../../../websocket';
+import { ChannelType } from '../../../api/v1/channels';
 
 function GenerateProfilePicture(id: string) {
 	let arr = id.split("");
@@ -24,6 +25,8 @@ export class Users extends Routable {
 	@Param('user')
 	@GET
 	async Users(req, res, user: User, target: string): Promise<IUser.User | void> {
+		let authenticatedUserId = user.id;
+
 		let self = target === '@me' || target === user.id;
 		if (!self) {
 			let repo = dbConn.getRepository(User);
@@ -41,13 +44,72 @@ export class Users extends Routable {
 			}
 		}
 
+		let friend = await createQueryBuilder(Friend)
+			.where('Friend.userId = :user', { user: authenticatedUserId })
+			.andWhere('Friend.friendId = :target', { target: user.id })
+			.getOne();
+
 		let profile = user.userProfile;
 		return {
 			id: user.id,
 			email: self ? user.email : undefined,
+			createdAt: +user.createdAt,
 			username: user.username,
+
 			status: profile.status,
-			avatarURL: profile.avatarURL || GenerateProfilePicture(user.id)
+			avatarURL: profile.avatarURL || GenerateProfilePicture(user.id),
+
+			relation: self ? 'self' : (friend ? friend.status : 'unknown')
+		};
+	}
+
+	@Route('/@me')
+	@Authenticated(['userProfile'])
+	@Body([false, false, false, false], 'username', 'email', 'status', 'avatarURL')
+	@PUT
+	async UpdateProfile(req, res, user: User,
+		username: string, email: string, status: IUser.Status, avatarURL: string): Promise<IUser.UpdateUser> {
+		
+		if (username) {
+			user.username = username;
+		}
+
+		if (email) {
+			user.email = email;
+		}
+
+		let profile = user.userProfile;
+
+		if (status) {
+			if (status !== 'offline') {
+				profile.status = status;
+			}
+		}
+
+		if (avatarURL) {
+			profile.avatarURL = avatarURL;
+		}
+
+		await dbConn.manager.save([ user, profile ]);
+
+		SendPacket({
+			type: 'userUpdate',
+			user: user.id,
+
+			status: profile.status,
+			avatarURL: profile.avatarURL
+		});
+
+		return {
+			id: user.id,
+			username: user.username,
+			createdAt: +user.createdAt,
+			email: user.email,
+
+			status: profile.status,
+			avatarURL: profile.avatarURL,
+
+			relation: 'self'
 		};
 	}
 
@@ -76,6 +138,74 @@ export class Users extends Routable {
 		);
 
 		return dms;
+	}
+
+	@Route('/@me/groups')
+	@Authenticated()
+	@GET
+	async GetGroups(req, res, user: User): Promise<IUser.GetGroups> {
+		let users = await dbConn.query("SELECT * FROM `groups -> members` WHERE usersId = ?", [user.id]);
+	
+		if (users.length < 1) return [];
+
+		let qb = createQueryBuilder(Group), ids = [];
+		users.forEach((x, i) => {
+			ids.push(x.groupsId);
+			qb = qb
+				.orWhere(`Group.id = :${i}`)
+				.setParameter(i.toString(), x.groupsId)
+		});
+
+		let groups = await qb
+			.innerJoinAndSelect('Group.channel', 'channel')
+			//.innerJoinAndSelect('Group.members', 'member')
+			.getRawMany();
+
+		/*let members = {};
+		for (let i=0;i<groups.length;i++) {
+			let group = groups[i];
+			let id = group.Group_id;
+			if (!members[id]) {
+				members[id] = [];
+			}
+
+			members[id].push(group.member_id);
+		}
+
+		let map = new Map();
+		groups.forEach(x => map.set(x.Group_id, x));
+		let gr = Array.from(map.values());*/
+
+		let sql = 'SELECT * FROM `groups -> members` WHERE groupsId = ?' + ' OR groupsId = ?'.repeat(ids.length - 1);
+		let all_users = await dbConn.query(sql, ids);
+
+		let grps: IUser.GetGroups = [];
+		for (let i=0;i<groups.length;i++) {
+			let group = groups[i];
+
+			let members = all_users
+				.filter(x => x.groupsId == group.Group_id)
+				.map(x => { return x.usersId });
+
+			grps.push({
+				id: group.Group_id,
+				createdAt: +group.Group_createdAt,
+				avatarURL: group.Group_avatarURL,
+				title: group.Group_title,
+
+				owner: group.Group_ownerId,
+				members: members,
+
+				channel: {
+					id: group.channel_id,
+					type: ChannelType.GROUP,
+					group: group.Group_id,
+					description: group.channel_description
+				}
+			});
+		}
+
+		return grps;
 	}
 
 	@Route('/@me/channels')
@@ -123,19 +253,49 @@ export class Users extends Routable {
 
 	@Route('/@me/friends')
 	@Authenticated()
+	@Query([false], 'sync')
 	@GET
-	async GetFriends(req, res, user: User): Promise<IUser.Friends> {
+	async GetFriends(req, res, user: User, sync: 'true' | undefined): Promise<IUser.Friends> {
 		let friends = await createQueryBuilder(Friend)
 			.where('Friend.userId = :target', { target: user.id })
 			.getRawMany();
 
-		let out = [];
-		friends.forEach(friend => {
-			out.push({
-				user: friend.Friend_friendId,
-				type: friend.Friend_status
+		let out: IUser.Friends = [];
+		if (sync === 'true') {
+			let qb = createQueryBuilder(User), status = {};
+			friends.forEach((x, i) => { 
+				status[x.Friend_friendId] = x.Friend_status;
+				qb = qb
+					.orWhere(`User.id = :${i}`)
+					.setParameter(i.toString(), x.Friend_friendId)
 			});
-		});
+
+			let users = await qb
+				.select([ 'User.id', 'User.createdAt', 'User.username' ])
+				.innerJoinAndSelect('User.userProfile', 'userProfile')
+				.getMany();
+
+			users.forEach(x =>
+				out.push({
+					id: x.id,
+					username: x.username,
+					createdAt: +x.createdAt,
+
+					status: x.userProfile.status,
+					avatarURL: x.userProfile.avatarURL,
+
+					relation: status[x.id]
+				})
+			);
+		} else {
+			for (let i=0;i<friends.length;i++) {
+				let friend = friends[i];
+				out.push({
+					user: friend.Friend_friendId,
+					type: friend.Friend_status
+				});
+			}
+		}
 
 		return out;
 	}

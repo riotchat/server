@@ -215,6 +215,14 @@ export class Channels extends Routable {
 
 		let newid;
 		if (channel instanceof DMChannel) {
+			if (target.id === channel.userA.id ||
+				target.id === channel.userB.id) {
+					res.status(403);
+					res.send({ error: 'User already in DM?' });
+
+					return;
+				}
+
 			let groupChannel = new GroupChannel();
 			
 			await dbConn.manager.save(groupChannel);

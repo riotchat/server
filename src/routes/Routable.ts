@@ -109,6 +109,10 @@ export function GET(target: any, key: string, descriptor: PropDescriptor) {
 	descriptor.method = 'GET';
 }
 
+export function PUT(target: any, key: string, descriptor: PropDescriptor) {
+	descriptor.method = 'PUT';
+}
+
 export function DELETE(target: any, key: string, descriptor: PropDescriptor) {
 	descriptor.method = 'DELETE';
 }
