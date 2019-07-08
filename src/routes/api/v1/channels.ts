@@ -2,7 +2,7 @@ import Routable, { Route, POST, Path, GET, Query, Body, Authenticated, DELETE, P
 import * as IChannels from '../../../api/v1/channels';
 import { dbConn } from '../../../database';
 import { Channel, Message, DMChannel, User, GroupChannel, Group } from '../../../database/entity/imports';
-import { createQueryBuilder } from 'typeorm';
+import { createQueryBuilder, getConnection, getRepository } from 'typeorm';
 import { SendPacket } from '../../../websocket';
 
 export class Channels extends Routable {
@@ -187,11 +187,8 @@ export class Channels extends Routable {
 	@Body('recipient')
 	@POST
 	async AddRecipient(req, res, user: User, id: string, recipient: string): Promise<IChannels.AddRecipient | void> {
-		let channel = await dbConn.manager.findOne(Channel, {
-			where: {
-				id
-			}
-		});
+		let channel = await getRepository(Channel)
+			.findOne({ id });
 
 		if (!channel) {
 			res.status(404);
@@ -200,11 +197,8 @@ export class Channels extends Routable {
 			return;
 		}
 
-		let target = await dbConn.manager.findOne(User, {
-			where: {
-				id: recipient
-			}
-		});
+		let target = await getRepository(User)
+			.findOne({ where: { id: recipient }, select: [ 'id' ] });
 
 		if (!target) {
 			res.status(404);
@@ -218,7 +212,7 @@ export class Channels extends Routable {
 			if (target.id === channel.userA.id ||
 				target.id === channel.userB.id) {
 					res.status(403);
-					res.send({ error: 'User already in DM?' });
+					res.send({ error: 'User already in DM!' });
 
 					return;
 				}
@@ -240,19 +234,26 @@ export class Channels extends Routable {
 			await dbConn.manager.save(group);
 			channel = groupChannel;
 		} else if (channel instanceof GroupChannel) {
-			let group = await dbConn.manager.findOne(Group, {
-				where: {
-					channel
-				}
-			});
+			let group = await createQueryBuilder(Group)
+				.where('Group.channelId = :id', { id })
+				.select('Group.id')
+				.getOne();
 
-			let builder = dbConn
-				.createQueryBuilder()
+			let users: string[] = (await getConnection()
+				.query('SELECT usersId FROM `groups -> members` WHERE groupsId = ?', [ group.id ]))
+				.map(x => { return x.usersId });
+
+			if (users.includes(recipient)) {
+				res.status(403);
+				res.send({ error: 'User already in group!' });
+
+				return;
+			}
+
+			await createQueryBuilder()
 				.relation(Group, 'members')
-				.of(group);
-
-			let res = await builder.execute();
-			console.log(res);
+				.of(group)
+				.add(target);
 		} else {
 			res.status(403);
 			res.send('Not a Group or DM channel!');

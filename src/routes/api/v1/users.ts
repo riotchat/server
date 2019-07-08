@@ -144,7 +144,7 @@ export class Users extends Routable {
 	@Authenticated()
 	@GET
 	async GetGroups(req, res, user: User): Promise<IUser.GetGroups> {
-		let users = await dbConn.query("SELECT * FROM `groups -> members` WHERE usersId = ?", [user.id]);
+		let users = await dbConn.query("SELECT groupsId FROM `groups -> members` WHERE usersId = ?", [user.id]);
 	
 		if (users.length < 1) return [];
 
