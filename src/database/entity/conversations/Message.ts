@@ -16,10 +16,10 @@ export class Message {
 		this.id = ulid();
 	}
 
-	@CreateDateColumn({ type: "timestamp" })
+	@CreateDateColumn({ type: 'timestamp' })
     createdAt: Date;
 
-    @UpdateDateColumn({ type: "timestamp" })
+    @UpdateDateColumn({ type: 'timestamp' })
     updatedAt: Date;
 
 	@Column({

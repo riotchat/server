@@ -2,7 +2,7 @@ import Routable, { Route, POST, Path, GET, Query, Body, Authenticated, DELETE, P
 import * as IChannels from '../../../api/v1/channels';
 import { dbConn } from '../../../database';
 import { Channel, Message, DMChannel, User, GroupChannel, Group } from '../../../database/entity/imports';
-import { createQueryBuilder, getConnection, getRepository, getManager } from 'typeorm';
+import { createQueryBuilder, getConnection, getRepository, getManager, QueryBuilder } from 'typeorm';
 import { SendPacket } from '../../../websocket';
 
 export class Channels extends Routable {
@@ -35,12 +35,74 @@ export class Channels extends Routable {
 				id: channel.id,
 				type: IChannels.ChannelType.GROUP,
 				group: group.id,
-				description: 'test'
+				description: channel.description
 			};
 		}
 
 		res.status(503);
 		res.send({ error: 'no implemtnetation bad' });
+	}
+
+	@Route('/:id')
+	@Authenticated()
+	@Param('id')
+	@DELETE
+	async DeleteChannel(req, res, user: User, id: string): Promise<IChannels.DeleteChannel> {
+		let channel = await getManager()
+			.findOne(Channel, { id });
+
+		if (!channel) {
+			res.status(404);
+			res.send({ error: 'Channel does not exist!' });
+
+			return;
+		}
+
+		if (channel instanceof DMChannel) {
+			channel.active = false;
+			await getManager().save(channel);
+		} else if (channel instanceof GroupChannel) {
+			let query = await createQueryBuilder(Group)
+				.where('Group.channelId = :id', { id })
+				.select(['Group.id', 'Group.ownerId'])
+				.limit(1)
+				.getRawAndEntities();
+
+			let raw = query.raw[0];
+			let group = query.entities[0];
+
+			let members = (await getManager()
+				.query('SELECT usersId FROM `groups -> members` WHERE groupsId = ?', [ group.id ]))
+				.map(m => { return m.usersId });
+			
+			if (members.length === 1) {
+				// ! PURGE MESSAGES + MEMBERS + DELETE GROUP
+				return {};
+			}
+
+			if (raw.ownerId === user.id) {
+				let notOwner;
+				for (let i=0;i<members.length;i++) {
+					if (members[i] !== user.id) {
+						notOwner = members[i];
+						break;
+					}
+				}
+
+				let newOwner = await getManager()
+					.findOne(User, { where: { id: notOwner }, select: [ 'id' ] });
+
+				group.owner = newOwner;
+				await getManager().save(group);
+			}
+
+			await createQueryBuilder(Group)
+				.relation('members')
+				.of(group)
+				.remove(user);
+		}
+
+		return {};
 	}
 
 	@Route('/:id/messages')
@@ -50,19 +112,20 @@ export class Channels extends Routable {
 	async GetMessages(req, res, user, target: string): Promise<IChannels.GetMessages> {
 		let messages = await createQueryBuilder(Message)
 			.where('Message.channelId = :target', { target })
-			.getRawMany();
+			.getRawAndEntities();
 
 		let msgs: IChannels.GetMessages = [];
-		messages.forEach(message => {
+		for (let i=0;i<messages.entities.length;i++) {
+			let message = messages.entities[i], raw = messages.raw[i];
 			msgs.push({
-				id: message.Message_id,
-				content: message.Message_content,
-				createdAt: message.Message_createdAt,
-				updatedAt: message.Message_updatedAt,
-				author: message.Message_authorId,
-				channel: message.Message_channelId
+				id: message.id,
+				content: message.content,
+				createdAt: message.createdAt.getTime(),
+				updatedAt: message.updatedAt.getTime(),
+				author: raw.Message_authorId,
+				channel: raw.Message_channelId
 			})
-		});
+		}
 
 		return msgs;
 	}
@@ -125,6 +188,37 @@ export class Channels extends Routable {
 					(users.indexOf(ws.user.id) > -1) : false
 			});
 		}
+	}
+
+	@Route('/:id/messages/:mid')
+	@Authenticated()
+	@Param('id', 'mid')
+	@GET
+	async Message(req, res, user, channel: string, id: string): Promise<IChannels.Message | void> {
+		let query = await createQueryBuilder(Message)
+			.where('Message.id = :id', { id })
+			.where('Message.channelId = :channel', { channel })
+			.getRawAndEntities();
+		
+		let message = query.entities[0];
+		if (!message) {
+			res.status(404);
+			res.send({ error: 'Message does not exist!' });
+
+			return;
+		}
+
+		let raw = query.raw[0];
+		return {
+			id,
+			content: message.content,
+
+			createdAt: +message.createdAt,
+			updatedAt: +message.updatedAt,
+			
+			author: raw.Message_authorId,
+			channel: raw.Message_channelId
+		};
 	}
 
 	@Route('/:id/messages/:mid')
@@ -197,6 +291,28 @@ export class Channels extends Routable {
 		return {
 			updatedAt: +message.updatedAt
 		};
+	}
+
+	@Route('/:id/messages/:mid')
+	@Authenticated()
+	@Param('id', 'mid')
+	@DELETE
+	async DeleteMessage(req, res, user, channel: string, id: string): Promise<IChannels.DeleteMessage | void> {
+		let message = await getManager().findOne(Message, { id });
+		
+		if (!message) {
+			res.status(404);
+			res.send({ error: 'Message does not exist!' });
+
+			return;
+		}
+
+		await createQueryBuilder(Message)
+			.delete()
+			.where('id = :id', { id })
+			.execute();
+
+		return { };
 	}
 
 	@Route('/:id/recipients')
