@@ -1,6 +1,7 @@
 import { Entity, Column, PrimaryGeneratedColumn, OneToOne, JoinColumn, PrimaryColumn, BeforeInsert, CreateDateColumn } from 'typeorm';
 import { TwoFactor } from '../auth/TwoFactor';
 import { UserProfile } from './UserProfile';
+import { User as IUser, FriendType } from '../../../api/v1/users';
 
 import { ulid } from 'ulid';
 
@@ -44,4 +45,18 @@ export class User {
 	@OneToOne(type => UserProfile)
 	@JoinColumn()
 	userProfile: UserProfile;
+
+	toIUser(relation: FriendType, includeEmail: boolean = false): IUser {
+		return {
+			id: this.id,
+			username: this.username,
+			createdAt: +this.createdAt,
+			email: includeEmail ? this.email : undefined,
+
+			status: this.userProfile.status,
+			avatarURL: this.userProfile.avatarURL,
+
+			relation
+		};
+	}
 };

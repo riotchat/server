@@ -5,7 +5,7 @@ import { User } from '../database/entity/imports';
 import { dbConn } from '../database';
 import Logger from '../system/logging';
 
-const wss = new Server({ server: http, path: "/ws" });
+const wss = new Server({ server: http });
 
 interface RiotSocket extends WebSocket {
 	user: User
@@ -31,10 +31,16 @@ wss.on('connection', (ws: RiotSocket) => {
 	ws.sendPacket = data => ws.send(JSON.stringify(data));
 
 	ws.on('message', async (payload: string) => {
+		if (!dbConn) return ws.close();
 		if (authenticated) return;
 		
 		let data: ClientPackets = JSON.parse(payload);
 		switch (data.type) {
+			case 'ping':
+				ws.sendPacket({
+					type: 'pong'
+				});
+				break;
 			case 'authenticate':
 				{
 					let user = await dbConn.manager.findOne(User, {
@@ -61,4 +67,12 @@ wss.on('connection', (ws: RiotSocket) => {
 				break;
 		}
 	});
+
+	let ping = setInterval(() => {
+		ws.sendPacket({
+			type: 'ping'
+		});
+	}, 2000);
+
+	ws.on('close', () => clearInterval(ping));
 });

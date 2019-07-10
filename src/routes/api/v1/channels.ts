@@ -13,12 +13,8 @@ export class Channels extends Routable {
 	@Authenticated()
 	@Param('id')
 	@GET
-	async Channel(req, res, user: User, target: string): Promise<IChannels.Channel | void> {
-		let channel = await dbConn.manager.findOne(Channel, {
-			where: {
-				id: target
-			}
-		});
+	async Channel(req, res, user: User, id: string): Promise<IChannels.Channel | void> {
+		let channel = await getManager().findOne(Channel, { id });
 
 		if (channel instanceof DMChannel) {
 			return {
@@ -28,6 +24,18 @@ export class Channels extends Routable {
 					channel.userA.id,
 					channel.userB.id
 				]
+			};
+		} else if (channel instanceof GroupChannel) {
+			let group = await createQueryBuilder(Group)
+				.where('Group.channelId = :id', { id })
+				.select('Group.id')
+				.getOne();
+
+			return {
+				id: channel.id,
+				type: IChannels.ChannelType.GROUP,
+				group: group.id,
+				description: 'test'
 			};
 		}
 
@@ -64,14 +72,10 @@ export class Channels extends Routable {
 	@Param('id')
 	@Body('content')
 	@POST
-	async SendMessage(req, res, user, target: string, content: string): Promise<IChannels.SendMessage | void> {
+	async SendMessage(req, res, user, id: string, content: string): Promise<IChannels.SendMessage | void> {
 		content = content.substring(0, 2000);
 
-		let channel = await dbConn.manager.findOne(Channel, {
-			where: {
-				id: target
-			}
-		});
+		let channel = await getManager().findOne(Channel, { id });
 
 		if (!channel) {
 			res.status(404);
@@ -86,32 +90,41 @@ export class Channels extends Routable {
 		message.author = user;
 		await getManager().save(message);
 
-		let users: string[] = [];
-		if (channel instanceof DMChannel) {
-			if (!channel.active) {
-				channel.active = true;
-				await getManager().save(channel);
+		try {
+			return { id: message.id };
+		} finally {
+			let users: string[] = [];
+			if (channel instanceof DMChannel) {
+				if (!channel.active) {
+					channel.active = true;
+					await getManager().save(channel);
+				}
+
+				users = [ channel.userA.id, channel.userB.id ];
+			} else if (channel instanceof GroupChannel) {
+				let group = await createQueryBuilder(Group)
+					.where('Group.channelId = :id', { id })
+					.select('Group.id')
+					.getOne();
+
+				users = (await getManager()
+					.query('SELECT usersId from `groups -> members` WHERE groupsId = ?', [ group.id ]))
+					.map(u => { return u.usersId });
 			}
 
-			users = [channel.userA.id, channel.userB.id];
+			SendPacket({
+				type: 'message',
+				id: message.id,
+				content: message.content,
+				createdAt: message.createdAt.getTime(),
+				updatedAt: message.updatedAt.getTime(),
+				channel: message.channel.id,
+				author: message.author.id
+			}, ws => {
+				return ws.user ?
+					(users.indexOf(ws.user.id) > -1) : false
+			});
 		}
-
-		SendPacket({
-			type: 'message',
-			id: message.id,
-			content: message.content,
-			createdAt: message.createdAt.getTime(),
-			updatedAt: message.updatedAt.getTime(),
-			channel: message.channel.id,
-			author: message.author.id
-		}, ws => {
-			return ws.user ?
-				(users.indexOf(ws.user.id) > -1) : false
-		});
-
-		return {
-			id: message.id
-		};
 	}
 
 	@Route('/:id/messages/:mid')

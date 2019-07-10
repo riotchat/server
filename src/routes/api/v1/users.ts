@@ -1,9 +1,10 @@
 import Routable, { Route, POST, Path, GET, Body, Authenticated, Param, DELETE, PUT, Query } from '../../Routable';
+import * as IChannel from '../../../api/v1/channels';
 import * as IUser from '../../../api/v1/users';
 import { dbConn } from '../../../database';
 import { User, DMChannel, Group } from '../../../database/entity/imports';
 import { Friend } from '../../../database/entity/user/Friend';
-import { createQueryBuilder, getRepository, Brackets } from 'typeorm';
+import { createQueryBuilder, getRepository, Brackets, getManager } from 'typeorm';
 import { SendPacket } from '../../../websocket';
 import { ChannelType } from '../../../api/v1/channels';
 
@@ -100,44 +101,89 @@ export class Users extends Routable {
 			avatarURL: profile.avatarURL
 		});
 
-		return {
-			id: user.id,
-			username: user.username,
-			createdAt: +user.createdAt,
-			email: user.email,
-
-			status: profile.status,
-			avatarURL: profile.avatarURL,
-
-			relation: 'self'
-		};
+		return user.toIUser('self', true);
 	}
 
 	@Route('/@me/channels')
 	@Authenticated()
+	@Query([false], 'sync')
 	@GET
-	async GetDMs(req, res, user: User): Promise<IUser.GetDMs> {
+	async GetDMs(req, res, user: User, sync: 'true' | undefined): Promise<IUser.GetDMs> {
 		let channels = await createQueryBuilder(DMChannel, 'Channel')
 			.where('(Channel.userA = :id OR Channel.userB = :id)', { id: user.id })
 			.andWhere('Channel.active = 1')
 			.getRawMany();
 
 		return channels.map(channel => {
-			return {
-				id: channel.Channel_id,
-				user: user.id === channel.Channel_userAId ?
-					channel.Channel_userBId : channel.Channel_userAId
-			};
+			if (sync === 'true') {
+				return {
+					id: channel.Channel_id,
+					type: ChannelType.DM,
+
+					users: [
+						channel.Channel_userAId,
+						channel.Channel_userBId
+					]
+				} as IChannel.Channel;
+			}
+
+			return channel.Channel_id;
 		});
+	}
+
+	@Route('/@me/groups/:id')
+	@Authenticated()
+	@Param('id')
+	@GET
+	async Group(req, res, user: User, id: string): Promise<IUser.Group | void> {
+		let query = await createQueryBuilder(Group)
+			.where('Group.id = :id', { id })
+			.leftJoinAndSelect('Group.channel', 'channel')
+			.getRawAndEntities();
+		
+		let group = query.entities[0];
+		if (!group) {
+			res.status(404);
+			res.send({ error: 'Group does not exist!' });
+
+			return;
+		}
+
+		let members = (await getManager()
+			.query('SELECT usersId FROM `groups -> members` WHERE groupsId = ?', [ id ]))
+			.map(m => { return m.usersId });
+
+		let raw = query.raw[0];
+		return {
+			id: group.id,
+			createdAt: +group.createdAt,
+			title: group.title,
+			avatarURL: group.avatarURL,
+
+			owner: raw.Group_ownerId,
+			members,
+
+			channel: {
+				id: group.channel.id,
+				type: ChannelType.GROUP,
+				group: group.id,
+				description: group.channel.description
+			}
+		};
 	}
 
 	@Route('/@me/groups')
 	@Authenticated()
+	@Query([false], 'sync')
 	@GET
-	async GetGroups(req, res, user: User): Promise<IUser.GetGroups> {
+	async GetGroups(req, res, user: User, sync: 'true' | undefined): Promise<IUser.GetGroups> {
 		let users = await dbConn.query("SELECT groupsId FROM `groups -> members` WHERE usersId = ?", [user.id]);
+
+		if (sync !== 'true')
+			return users.map(u => { return u.groupsId; });
 	
-		if (users.length < 1) return [];
+		if (users.length < 1)
+			return [];
 
 		let qb = createQueryBuilder(Group), ids = [];
 		users.forEach((x, i) => {
@@ -250,7 +296,7 @@ export class Users extends Routable {
 		let friends = await createQueryBuilder(Friend)
 			.where('Friend.userId = :target', { target: user.id })
 			.getRawMany();
-
+		
 		let out: IUser.Friends = [];
 		if (sync === 'true') {
 			let qb = createQueryBuilder(User), status = {};
@@ -273,7 +319,7 @@ export class Users extends Routable {
 					createdAt: +x.createdAt,
 
 					status: x.userProfile.status,
-					avatarURL: x.userProfile.avatarURL,
+					avatarURL: x.userProfile.avatarURL || GenerateProfilePicture(x.id),
 
 					relation: status[x.id]
 				})

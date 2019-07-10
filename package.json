@@ -10,7 +10,7 @@
     "typescript": "^3.5.2"
   },
   "scripts": {
-    "dev": "tsc-watch --onSuccess \"node .\""
+    "dev": "tsc-watch --onSuccess \"node --inspect .\""
   },
   "dependencies": {
     "bcrypt": "^3.0.6",
