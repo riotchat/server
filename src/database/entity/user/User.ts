@@ -54,6 +54,10 @@ export class User {
 			email: includeEmail ? this.email : undefined,
 
 			status: this.userProfile.status,
+			activity: {
+				type: this.userProfile.activityType,
+				custom: this.userProfile.activity
+			},
 			avatarURL: this.userProfile.avatarURL,
 
 			relation

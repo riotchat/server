@@ -58,6 +58,10 @@ export class Users extends Routable {
 			username: user.username,
 
 			status: profile.status,
+			activity: {
+				type: profile.activityType,
+				custom: profile.activity
+			},
 			avatarURL: profile.avatarURL || GenerateProfilePicture(user.id),
 
 			relation: self ? 'self' : (friend ? friend.status : 'unknown')
@@ -66,10 +70,10 @@ export class Users extends Routable {
 
 	@Route('/@me')
 	@Authenticated(['userProfile'])
-	@Body([false, false, false, false], 'username', 'email', 'status', 'avatarURL')
+	@Body([false, false, false, false, false], 'username', 'email', 'status', 'activity', 'avatarURL')
 	@PUT
-	async UpdateProfile(req, res, user: User,
-		username: string, email: string, status: IUser.Status, avatarURL: string): Promise<IUser.UpdateUser> {
+	async UpdateProfile(req, res, user: User, username: string, email: string, status: IUser.Status,
+		activity: { type: IUser.Activity, custom: string }, avatarURL: string): Promise<IUser.UpdateUser> {
 		
 		if (username) {
 			user.username = username;
@@ -87,6 +91,12 @@ export class Users extends Routable {
 			}
 		}
 
+		if (activity) {
+			// ! VERIFY GAMES HERE
+			profile.activityType = activity.type;
+			profile.activity = activity.custom;
+		}
+
 		if (avatarURL) {
 			profile.avatarURL = avatarURL;
 		}
@@ -98,6 +108,10 @@ export class Users extends Routable {
 			user: user.id,
 
 			status: profile.status,
+			activity: {
+				type: profile.activityType,
+				custom: profile.activity
+			},
 			avatarURL: profile.avatarURL
 		});
 
@@ -319,6 +333,10 @@ export class Users extends Routable {
 					createdAt: +x.createdAt,
 
 					status: x.userProfile.status,
+					activity: {
+						type: x.userProfile.activityType,
+						custom: x.userProfile.activity
+					},
 					avatarURL: x.userProfile.avatarURL || GenerateProfilePicture(x.id),
 
 					relation: status[x.id]
