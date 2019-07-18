@@ -1,6 +1,6 @@
 import http from '../main';
 import WebSocket, { Server } from 'ws';
-import { Packets, ClientPackets } from '../api/ws/v1';
+import { Packets, ClientPackets } from '../api/v1/websocket';
 import { User } from '../database/entity/imports';
 import { dbConn } from '../database';
 import Logger from '../system/logging';

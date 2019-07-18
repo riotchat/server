@@ -1,5 +1,5 @@
 import Routable, { Route, POST, Path, GET, Query, Body, Authenticated, DELETE, Param } from '../../Routable';
-import * as IChannels from '../../../api/v1/channels';
+import * as IChannels from '../../../api/v1/api/channels';
 import { dbConn } from '../../../database';
 import { Channel, Message, DMChannel, User, GroupChannel, Group } from '../../../database/entity/imports';
 import { createQueryBuilder, getConnection, getRepository, getManager, QueryBuilder } from 'typeorm';

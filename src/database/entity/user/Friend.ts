@@ -1,7 +1,7 @@
 import { Entity, Column, ManyToOne, OneToOne, BeforeInsert, PrimaryColumn, JoinColumn } from 'typeorm';
 import { User } from './User';
 import { ulid } from 'ulid';
-import { FriendType } from '../../../api/v1/users';
+import { FriendType } from '../../../api/v1/api/users';
 
 @Entity({ name: 'users -> friends' })
 export class Friend {

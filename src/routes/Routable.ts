@@ -2,6 +2,7 @@ import router from '.';
 import { Response, Request } from 'express';
 import { dbConn } from '../database';
 import { User } from '../database/entity/imports';
+import { APIError, GetError } from '../api/v1/errors';
 
 export default class Routable {
 	path: string;
@@ -73,6 +74,27 @@ export function Query(...parameters: (string | boolean[])[]) {
 
 export function Body(...parameters: (string | boolean[])[]) {
 	return GetParser('body', ...parameters);
+}
+
+type OnFail = (error: APIError) => void;
+export function CanFail() {
+	return (target: Routable, key: string, descriptor: PropDescriptor) => {
+		let func = descriptor.value;
+		descriptor.value = async (...args) => {
+			function onFail(error: APIError) {
+				let [ status, reason ] = GetError(error);
+				args[1].status(status);
+				args[1].send({
+					error,
+					reason
+				});
+			}
+
+			return await func(...args, onFail);
+		};
+
+		return descriptor;
+	};
 }
 
 export function Authenticated(relations?: string[]) {

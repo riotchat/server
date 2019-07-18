@@ -1,12 +1,12 @@
 import Routable, { Route, POST, Path, GET, Body, Authenticated, Param, DELETE, PUT, Query } from '../../Routable';
-import * as IChannel from '../../../api/v1/channels';
-import * as IUser from '../../../api/v1/users';
+import * as IChannel from '../../../api/v1/api/channels';
+import * as IUser from '../../../api/v1/api/users';
 import { dbConn } from '../../../database';
 import { User, DMChannel, Group } from '../../../database/entity/imports';
 import { Friend } from '../../../database/entity/user/Friend';
 import { createQueryBuilder, getRepository, Brackets, getManager } from 'typeorm';
 import { SendPacket } from '../../../websocket';
-import { ChannelType } from '../../../api/v1/channels';
+import { ChannelType } from '../../../api/v1/api/channels';
 
 function GenerateProfilePicture(id: string) {
 	let arr = id.split("");

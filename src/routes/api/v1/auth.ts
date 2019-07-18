@@ -1,5 +1,5 @@
 import Routable, { Route, POST, Path, GET, Query, Body, Authenticated, DELETE } from '../../Routable';
-import * as IAuth from '../../../api/v1/auth';
+import * as IAuth from '../../../api/v1/api/auth';
 
 import nanoid from 'nanoid';
 import authenticator from 'otplib/authenticator';

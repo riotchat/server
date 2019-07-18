@@ -1,7 +1,7 @@
 import { Entity, Column, PrimaryGeneratedColumn, OneToOne, JoinColumn, PrimaryColumn, BeforeInsert, CreateDateColumn } from 'typeorm';
 import { TwoFactor } from '../auth/TwoFactor';
 import { UserProfile } from './UserProfile';
-import { User as IUser, FriendType } from '../../../api/v1/users';
+import { User as IUser, FriendType } from '../../../api/v1/api/users';
 
 import { ulid } from 'ulid';
 

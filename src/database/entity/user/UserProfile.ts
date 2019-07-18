@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, PrimaryColumn, BeforeInsert } from 'typeorm';
-import { Status, Activity } from '../../../api/v1/users';
+import { Status, Activity } from '../../../api/v1/api/users';
 import { ulid } from 'ulid';
 
 @Entity({ name: 'users -> profile' })
