@@ -2,7 +2,7 @@ import router from '.';
 import { Response, Request } from 'express';
 import { dbConn } from '../database';
 import { User } from '../database/entity/imports';
-import { APIError, GetError } from '../api/v1/errors';
+import { APIError, GetError, SendError } from '../api/v1/errors';
 
 export default class Routable {
 	path: string;
@@ -48,9 +48,7 @@ function GetParser(child: 'params' | 'body' | 'query', ...parameters: (string | 
 				let o = args[0][child][param];
 
 				if (!o && (!check || check[i])) {
-					args[1].status(422);
-					args[1].send({ error: `Missing field ${param}!` });
-
+					SendError(args[1], APIError.MISSING_FIELDS, `Lacking ${param} field.`);
 					return;
 				}
 
@@ -76,18 +74,13 @@ export function Body(...parameters: (string | boolean[])[]) {
 	return GetParser('body', ...parameters);
 }
 
-type OnFail = (error: APIError) => void;
+export type OnFail = (error: APIError, details?: string) => void;
 export function CanFail() {
 	return (target: Routable, key: string, descriptor: PropDescriptor) => {
 		let func = descriptor.value;
 		descriptor.value = async (...args) => {
-			function onFail(error: APIError) {
-				let [ status, reason ] = GetError(error);
-				args[1].status(status);
-				args[1].send({
-					error,
-					reason
-				});
+			function onFail(error: APIError, details?: string) {
+				SendError(args[1], error, details);
 			}
 
 			return await func(...args, onFail);

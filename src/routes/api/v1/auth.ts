@@ -1,4 +1,4 @@
-import Routable, { Route, POST, Path, GET, Query, Body, Authenticated, DELETE } from '../../Routable';
+import Routable, { Route, POST, Path, GET, Query, Body, Authenticated, DELETE, CanFail, OnFail } from '../../Routable';
 import * as IAuth from '../../../api/v1/api/auth';
 
 import nanoid from 'nanoid';
@@ -11,15 +11,17 @@ import { dbConn } from '../../../database';
 import { User } from '../../../database/entity/user/User';
 import { TwoFactor, UserProfile } from '../../../database/entity/imports';
 import { hash, compare } from 'bcrypt';
+import { APIError } from '../../../api/v1/errors';
 
 export class Auth extends Routable {
 	@Path('/api/v1/auth')
 	path;
 
 	@Route('/authenticate')
+	@CanFail()
 	@Body('email', 'password')
 	@POST
-	async Authenticate(req, res, email: string, password: string): Promise<IAuth.Authenticate | void> {
+	async Authenticate(req, res, fail: OnFail, email: string, password: string): Promise<IAuth.Authenticate | void> {
 		let repo = dbConn.getRepository(User);
 		let user = await repo.findOne({
 			email
@@ -27,21 +29,11 @@ export class Auth extends Routable {
 			relations: ['options2FA']
 		});
 		
-		if (!user) {
-			res.status(403);
-			res.send({ error: "Invalid email!" });
-
-			return;
-		}
+		if (!user) return fail(APIError.INVALID_EMAIL);
 
 		let valid = await compare(password, user.password);
 
-		if (!valid) {
-			res.status(403);
-			res.send({ error: "Invalid password!" });
-
-			return;
-		}
+		if (!valid) return fail(APIError.INVALID_PASSWORD);
 
 		let twoFactor = user.options2FA;
 		if (twoFactor.mode != 'none') {
@@ -62,32 +54,24 @@ export class Auth extends Routable {
 	}
 
 	@Route('/2fa')
+	@CanFail()
 	@Body('token', 'code')
 	@POST
-	async Authenticate2FA(req, res, token: string, code: number): Promise<IAuth.Authenticate2FA | void> {
+	async Authenticate2FA(req, res, fail: OnFail, token: string, code: number): Promise<IAuth.Authenticate2FA | void> {
 		let tfa = await dbConn.manager.findOne(TwoFactor, {
 			where: {
 				token
 			}
 		});
 
-		if (!tfa) {
-			res.status(403);
-			res.send({ error: "Invalid 2FA token!" });
-
-			return;
-		}
+		if (!tfa) return fail(APIError.INVALID_2FA, 'Cannot find verification token.');
 
 		tfa.token = null;
 		await dbConn.manager.save(tfa);
 
 		if (tfa.mode == 'totp') {
-			if (!authenticator.verify({secret: tfa.totpKey, token: code})) {
-				res.status(403);
-				res.send({ error: "Invalid TOTP code!" });
-
-				return;
-			}
+			if (!authenticator.verify({secret: tfa.totpKey, token: code}))
+				return fail(APIError.INVALID_2FA, 'Invalid TOTP code.');
 		}
 
 		let user = await dbConn.manager.findOne(User, {
