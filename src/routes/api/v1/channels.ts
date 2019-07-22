@@ -133,9 +133,9 @@ export class Channels extends Routable {
 	@Route('/:id/messages')
 	@Authenticated()
 	@Param('id')
-	@Body('content')
+	@Body([true, false], 'content', 'nonce')
 	@POST
-	async SendMessage(req, res, user, id: string, content: string): Promise<IChannels.SendMessage | void> {
+	async SendMessage(req, res, user, id: string, content: string, nonce?: string): Promise<IChannels.SendMessage | void> {
 		content = content.substring(0, 2000);
 
 		let channel = await getManager().findOne(Channel, { id });
@@ -182,7 +182,8 @@ export class Channels extends Routable {
 				createdAt: message.createdAt.getTime(),
 				updatedAt: message.updatedAt.getTime(),
 				channel: message.channel.id,
-				author: message.author.id
+				author: message.author.id,
+				nonce
 			}, ws => {
 				return ws.user ?
 					(users.indexOf(ws.user.id) > -1) : false

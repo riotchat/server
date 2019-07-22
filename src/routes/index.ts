@@ -7,6 +7,10 @@ import { dbConn } from '../database';
 const router = Router();
 export default router;
 
+router.use(cors());
+router.use(urlencoded({ extended: true }));
+router.use(json());
+
 router.get('/', (req, res) => {
 	res.contentType('application/json');
 	res.send({
@@ -25,10 +29,6 @@ router.use((req, res, next) => {
 
 	next();
 });
-
-router.use(cors());
-router.use(urlencoded({ extended: true }));
-router.use(json());
 
 import './api/v1/auth';
 import './api/v1/channels';
