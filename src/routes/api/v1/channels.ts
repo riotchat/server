@@ -1,7 +1,7 @@
 import Routable, { Route, POST, Path, GET, Query, Body, Authenticated, DELETE, Param } from '../../Routable';
 import * as IChannels from '../../../api/v1/api/channels';
 import { dbConn } from '../../../database';
-import { Channel, Message, DMChannel, User, GroupChannel, Group } from '../../../database/entity/imports';
+import { Channel, Message, DMChannel, User, GroupChannel, Group, GuildChannel } from '../../../database/entity/imports';
 import { createQueryBuilder, getConnection, getRepository, getManager, QueryBuilder } from 'typeorm';
 import { SendPacket } from '../../../websocket';
 
@@ -145,8 +145,11 @@ export class Channels extends Routable {
 	async SendMessage(req, res, user, id: string, content: string, nonce?: string): Promise<IChannels.SendMessage | void> {
 		content = content.substring(0, 2000);
 
-		let channel = await getManager().findOne(Channel, { id });
-
+		let query = await createQueryBuilder(Channel)
+			.where('Channel.id = :id', { id })
+			.getRawAndEntities();
+		
+		let channel = query.entities[0];
 		if (!channel) {
 			res.status(404);
 			res.send({ error: "Channel not found!" });
@@ -179,6 +182,11 @@ export class Channels extends Routable {
 
 				users = (await getManager()
 					.query('SELECT usersId from `groups -> members` WHERE groupsId = ?', [ group.id ]))
+					.map(u => { return u.usersId });
+			} else if (channel instanceof GuildChannel) {
+				let guild = query.raw[0].guildId;
+				users = (await getManager()
+					.query('SELECT usersId from `guilds -> members` WHERE guildsId = ?', [ guild ]))
 					.map(u => { return u.usersId });
 			}
 
