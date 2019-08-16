@@ -108,11 +108,18 @@ export class Channels extends Routable {
 	@Route('/:id/messages')
 	@Authenticated()
 	@Param('id')
+	@Query([false, false, false], 'before', 'after', 'limit')
 	@GET
-	async GetMessages(req, res, user, target: string): Promise<IChannels.GetMessages> {
-		let messages = await createQueryBuilder(Message)
+	async GetMessages(req, res, user, target: string, before?: string, after?: string, limit?: number): Promise<IChannels.GetMessages> {
+		let qb = createQueryBuilder(Message)
 			.where('Message.channelId = :target', { target })
-			.getRawAndEntities();
+			.orderBy('Message.id', 'DESC')
+			.limit(limit ? Math.max(0, Math.min(limit, 100)) : 50);
+
+		if (before) qb = qb.andWhere('Message.id < :before', { before });
+		if (after) qb = qb.andWhere('Message.id > :after', { after });
+
+		let messages = await qb.getRawAndEntities();
 
 		let msgs: IChannels.GetMessages = [];
 		for (let i=0;i<messages.entities.length;i++) {
@@ -127,7 +134,7 @@ export class Channels extends Routable {
 			})
 		}
 
-		return msgs;
+		return msgs.reverse();
 	}
 
 	@Route('/:id/messages')

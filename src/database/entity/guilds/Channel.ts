@@ -1,5 +1,5 @@
 import { ChildEntity, Column, ManyToOne } from 'typeorm';
-import { Channel } from '../Channel';
+import { Channel } from '../conversations/Channel';
 import { Guild } from './Guild';
 
 @ChildEntity()

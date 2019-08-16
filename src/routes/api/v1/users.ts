@@ -209,23 +209,7 @@ export class Users extends Routable {
 
 		let groups = await qb
 			.innerJoinAndSelect('Group.channel', 'channel')
-			//.innerJoinAndSelect('Group.members', 'member')
 			.getRawMany();
-
-		/*let members = {};
-		for (let i=0;i<groups.length;i++) {
-			let group = groups[i];
-			let id = group.Group_id;
-			if (!members[id]) {
-				members[id] = [];
-			}
-
-			members[id].push(group.member_id);
-		}
-
-		let map = new Map();
-		groups.forEach(x => map.set(x.Group_id, x));
-		let gr = Array.from(map.values());*/
 
 		let sql = 'SELECT * FROM `groups -> members` WHERE groupsId = ?' + ' OR groupsId = ?'.repeat(ids.length - 1);
 		let all_users = await dbConn.query(sql, ids);

@@ -32,4 +32,5 @@ router.use((req, res, next) => {
 
 import './api/v1/auth';
 import './api/v1/channels';
+import './api/v1/guilds';
 import './api/v1/users';

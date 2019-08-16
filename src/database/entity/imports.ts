@@ -11,5 +11,5 @@ export * from './conversations/dm/Channel';
 export * from './conversations/group/Channel';
 export * from './conversations/group/Group';
 
-export * from './conversations/guild/Channel';
-export * from './conversations/guild/Guild';
+export * from './guilds/Channel';
+export * from './guilds/Guild';
