@@ -1,4 +1,4 @@
-import Routable, { Route, POST, Path, GET, Query, Body, Authenticated, DELETE, CanFail, OnFail } from '../../Routable';
+import Routable, { Route, POST, Path, Body, CanFail, OnFail } from '../../Routable';
 import * as IAuth from '../../../api/v1/api/auth';
 
 import nanoid from 'nanoid';
@@ -10,7 +10,7 @@ authenticator.options = { crypto };
 import { dbConn } from '../../../database';
 import { User } from '../../../database/entity/user/User';
 import { TwoFactor, UserProfile } from '../../../database/entity/imports';
-import { hash, compare } from 'bcrypt';
+import { hash, compare } from 'bcryptjs';
 import { APIError } from '../../../api/v1/errors';
 
 export class Auth extends Routable {
